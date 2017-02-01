@@ -5,14 +5,14 @@ I won't re-hash Imran's excellent emulation [tutorial](http://imrannazar.com/Gam
 ). The purpose of this readme is to document the steps I took to build my own emulator and how I reasoned through it.
 
 ## Emulation: A Background
-Emulation is basically trying to mimic hardware using software. Things like timing, registers, memory management - all of these need to be replicated correctly or the end product won't work correctly. I found it quite tough to pick a place to start when I first started this emulator. Where do you even begin? The most logical place seemed to be the processor. After all, the processor is the heart of any computer. However, it made more sense to start with the memory architecture. The processor operates on memory (program data, BIOS, etc.), so it felt more natural to start there. After the memory architecture is defined, we could begin the implementation of the CPU. 
+Emulation is basically trying to mimic hardware functionality using software. Things like timing, registers, memory management - all of these need to be replicated correctly or the end product won't work correctly. I found it quite tough to pick a place to start when I first started this emulator. Where do you even begin? The most logical place seemed to be the processor. After all, the processor is the heart of any computer. However, it made more sense to start with the memory architecture. The processor operates on memory (program data, BIOS, etc.), so it felt more natural to start there. After the memory architecture is defined, we could begin the implementation of the CPU. 
 
 It's possible to build each component one-by-one and integrate them all at the end. However, this seems like a very error-prone way of doing things. When we build the emulator, let's try to create the bare minimum to have a functioning display as soon as possible, no matter how simple it is. This will be our confirmation that things are working as expected. After this major hurdle is accomplished, we can iterate and add on to each component until we have a working emulator!
 
 Before we jump in and start coding, let's step back and try to understand what happens when we turn on our GameBoy.
 
 ## Boot Process
-Our computer contains a motherboard, which houses all of our important components and allows them to communicate. The motherboard contains a BIOS. The BIOS is a ROM chip that contains a program necessary for the initialization and configuration of our input and output devices. After initialization, the BIOS will load the operating system so we can actually do some cool stuff using our computer.
+Our computer contains a motherboard which houses all of the computer's important components and allows them to communicate. The motherboard contains a BIOS. The BIOS is a ROM chip that contains a program necessary for the initialization and configuration of our input and output devices. After initialization, the BIOS will load the operating system so we can actually do some cool stuff using our computer.
 
 When we turn on a computer, power is supplied to the motherboard and the CPU is switched on. The CPU's registers are set to specific default values. A special register, the program counter (sometimes called 'instruction pointer'), is set to its pre-determined default - the address of the BIOS. The program counter now points at the first instruction of the BIOS program and is ready to start the boot process. The CPU will begin a series of cycles that it's destined to complete for eternity (or until it's turned off): fetch, decode, and execute.
 
@@ -23,7 +23,7 @@ A GameBoy has very similar architecture, though there are many small details we 
 ## Memory Architecture
 The GameBoy utilizes a 16-bit address bus, meaning there are 2^16 (64k) bytes of addressable memory. Everything from video memory to input handling to game data is handled within 64k of memory! Interestingly, some games were megabytes in size, far exceeding the 64k of addressable memory. How did this work?
 
-A GameBoy game was split into multiple 16kb 'banks' of memory. The first 16kb (0x3FFF) of a cartridge's ROM were permanently-mapped to addresses 0x0000 to 0x3FFF. The second 16kb (0x4000 - 0x7FFF) of address space could reference one of the other banks of memory at a time. For example, if you developed a GameBoy game with multiple levels, you could 'switch' levels by changing the bank you're currently addressing. Switching this bank was handled by a Memory Bank Controller.
+A GameBoy game is split into multiple 16kb 'banks' of memory. The first 16kb (0x3FFF) of a cartridge's ROM is permanently-mapped to addresses 0x0000 to 0x3FFF. The second 16kb (0x4000 - 0x7FFF) of address space could reference one of the other banks of memory at a time. For example, if you developed a GameBoy game with multiple levels, you could 'switch' levels by changing the bank you're currently addressing. Switching this bank was handled by a Memory Bank Controller.
 
 The 64k of addressable memory was divided as follows (in hex):
 
