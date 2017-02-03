@@ -231,6 +231,7 @@ Upon boot, the GameBoy's RAM contains a bunch of junk data. We reset the video R
 
 Finally, the last section sets up the audio. Let's not concern ourselves with how it works. Instead let's just implement the opcodes it uses.
 
+#### Part 2
 ```
     LD SP,$fffe		 ; [0x31, 0xFE, 0XFF] - Set stack pointer to FFFE (top of the stack)
 
@@ -254,6 +255,41 @@ Addr_0007:           ; This subroutine clears the video RAM, starting at 9FFF an
     LD (HL),A		; [0x77]
 ```
 
+#### Section 2
+In this section of the bootstrap, we're setting up the video RAM to display the Nintendo logo. Each background or window tile has a certain shade associated with it. Memory location FF47 is a special register used by the LCD hardware to define the shade of gray given to a background or window tile. For more detail, visit this [link](http://bgb.bircd.org/pandocs.htm#lcdmonochromepalettes). Basically, 0xFC is a specially chosen number used to define our 'color scheme' for the Nintendo logo.
+
+Memory address 0x0104 is where the Nintendo logo lives. We load that into register DE so we can reference this address later in the code. We point register HL to address 0x8010, which is part of our video RAM memory.
+
+We know where the Nintendo logo lives - refer back to our memory map to see that it lives in address space 0x0104 to 0x0134. Addr_0027 is a loop that goes through each byte of the Nintendo logo. We call a subroutine on each byte twice. The subroutine located at address 0x0095 and 0x0096 of the bootstrap ROM rotates and scales the byte in memory. We'll talk more about this routine when we get to it. After this subroutine is called twice, we increment our pointer to the Nintendo logo, check if we're at the end of the logo (0x0134). If not, we continue looping. After the loop is finished, register HL is still pointing to video RAM.
+
+If we're done with the Nintendo logo, we enter a loop that copies a byte over to video RAM 8 times. The result of this loop is is the registered trademark symbol that appears next to the Nintendo logo.
+
+```
+    LD A,$fc		    ; [0x3E, 0xFC] - load 0xFC into A to initialize the color palette
+    LD ($FF00+$47),A	; [0xE0, 0x47] - Set the color register to 0xFC
+
+    LD DE,$0104		    ; [0x11, 0x04, 0x01] - Use DE as a pointer to memory location 0x104 - the location of the Nintendo logo in our memory map
+    LD HL,$8010		    ; [0x21, 0x10, 0x80] - Use HL as a pointer to address 0x8010 - a section of our video RAM
+Addr_0027:
+    LD A,(DE)		    ; [0x1A] - Load A with the first byte of the Nintendo logo
+    CALL $0095		    ; [0xCD, 0x95, 0x00] - Call subroutine at address 95 of the BIOS to scale the current byte
+    CALL $0096		    ; [0xCD, 0x96, 0x00] - After returning, call subroutine at address 96 of the BIOS 'again' to scale the byte a second time (skipping the first instruction)
+    INC DE		        ; [0x13] - Move to the next byte of the Nintendo logo
+    LD A,E		        ; [0x7B] - Load the low byte of the current address into A
+    CP $34		        ; [0xFE, 0x34] - Are we at the end of the Nintendo logo (address 0x0134)
+    JR NZ, Addr_0027	; [0x20, 0xF3] - If we are not at the end (result of comparison was 'false'), loop through again.
+
+    LD DE,$00d8		    ; [0x11, 0xD8, 0x00]
+    LD B,$08		    ; [0x06, 0x08] - Set loop counter B to 8
+Addr_0039:
+    LD A,(DE)    		; [0x1A]
+    INC DE		        ; [0x13]
+    LD (HL+),A		    ; [0x22]
+    INC HL		        ; [0x23]
+    DEC B			    ; [0x05] Decrement loop counter
+    JR NZ, Addr_0039	; [0x20, 0xF9] If we haven't looped through 8 times, keep looping
+
+```
 
 https://wornwinter.wordpress.com/tag/assembler/
 http://imrannazar.com/GameBoy-Emulation-in-JavaScript:-The-CPU
