@@ -13,11 +13,16 @@ class GameBoy {
         clock.m = z80.m;
         clock.t = z80.t;
 
-        z80.step();
-        this.z80.printDebug();
+        try {
+            while(1) { //eslint-disable-line
+                z80.step();
+                this.z80.printDebug();
+            }
+        } catch(ex) {
+            throw ex;
+        }
     }
 }
 
 const gameBoy = new GameBoy();
 window.gameBoy = gameBoy;
-gameBoy.loadGame();

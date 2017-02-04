@@ -2,6 +2,7 @@ import defaultBios from './bios';
 
 class MMU {
     vram = [];
+    zeroPage = [];
     bios = defaultBios;
 
     readByte(address) {
@@ -21,7 +22,7 @@ class MMU {
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
             throw new Error('Not yet implemented');//io
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
-            throw new Error('Not yet implemented');//zero page ram
+            return this.zeroPage[address - 0xFF00];
         }
         return valueAtAddress;
     }
@@ -50,7 +51,7 @@ class MMU {
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
             throw new Error('Not yet implemented');//io
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
-            throw new Error('Not yet implemented');//zero page ram
+            this.zeroPage[address - 0xFF00] = value;
         }
     }
 

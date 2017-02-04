@@ -1,6 +1,7 @@
 const webpack = require('webpack');
 
 module.exports = {
+    devtool: 'source-map',
     entry: './src/GameBoy.js',
     output: {
         path: __dirname + '/output',

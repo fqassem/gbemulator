@@ -68,7 +68,7 @@ This almost 8k of RAM is reserved and should not be modified. Internally, it's a
 ### 0xFE00 - 0xFE9F: OAM (Object Attribute Memory) or 'Sprite Information'
 This section of memory is used to store sprite positions on the screen, as well as their attributes.
 
-### 0xFF00 - 0xFF7F: I/O
+### 0xFF00 - 0xFF7F: Hardware I/O
 The LCD Display, sound, link cable, internal timers, and joypad/buttons were all managed in this section of memory.
 
 ### 0xFF80 - 0xFFFE: Zero Page RAM
@@ -79,7 +79,9 @@ A special memory location for the interrupt enable register.
 
 The eagle-eyed of you will notice a section is missing. Where do addresses 0xFEA0 to 0xFEFF resolve? This section of memory is unused, so it's safely omitted.
 
-This memory map defines the structure of the memory architecture we'll be implementing. Instead of coding up every one of these sections, let's start with the bare minimum to get the Nintendo logo to display on screen - the memory architecture 'container', the BIOS, and the Video RAM. Next we'll create the processor, its registers, and the opcodes it needs to run the BIOS program. Finally, we'll implement the display - both in memory and the actual display we'll use to run it in the browser.
+This memory map defines the structure of the memory architecture we'll be implementing. Instead of coding up every one of these sections, let's start with the bare minimum to get the Nintendo logo to display on screen - the memory architecture 'container', the BIOS, and the Video RAM. Next we'll create the hardware I/O memory section. Hardware I/O is necessary for the BIOS to run to completion. The BIOS (and GameBoy games) depend on timing information from this section of memory, so without it our program will infinitely loop.
+
+Next create the processor, its registers, and the opcodes it needs to run the BIOS program. Finally, we'll implement the display - both in memory and the actual display we'll use to run it in the browser.
 
 ## MMU
 The MMU (memory management unit) is what we will call the interface to all of these different memory components we will create. By themselves, the memory units can be thought of as nothing but bit buckets - simple arrays containing bytes. When the CPU reads an opcode and decodes it to an instruction, it's possible that the instruction needs to read from or write to one of these sections of memory. The MMU will will receive the command to read or write along with a memory address. If something needs to be written to memory, the value will be passed in as well. The MMU will make sure the correct section of memory is read from or written to using the memory map we defined above.
@@ -89,25 +91,31 @@ There are four possible commands the MMU can receive: read a byte from a section
 Let's create the interface and skeleton for the MMU:
 
 ```
+import defaultBios from './bios';
+
 class MMU {
+    vram = [];
+    zeroPage = [];
+    bios = defaultBios;
+
     readByte(address) {
         let valueAtAddress;
         if(address <= 0x7FFF) {
-            //cartridge memory
+            return this.bios[address];
         } else if(address >= 0x8000 && address <= 0x9FFF) {
-            //video RAM
+            return this.vram[address - 0x8000];
         } else if(address >= 0xA000 && address <= 0xBFFF) {
-            //cartridge external RAM
+            throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xC000 && address <= 0xDFFF) {
-            //working RAM
+            throw new Error('Not yet implemented');//working RAM
         } else if(address >= 0xE000 && address <= 0xFDFF) {
-            //(reserved) working RAM shadow
+            throw new Error('Not yet implemented');//(reserved) working RAM shadow
         } else if(address >= 0xFE00 && address <= 0xFE9F) {
-            //oam
+            throw new Error('Not yet implemented');//oam
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
-            //io
+            throw new Error('Not yet implemented');//io
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
-            //zero page ram
+            return this.zeroPage[address - 0xFF00];
         }
         return valueAtAddress;
     }
@@ -115,7 +123,7 @@ class MMU {
     readSignedByte(address) {
         let value = this.readByte(address);
         if(value > 127) {
-             value = -((~value + 1) & 255);
+            value = -((~value + 1) & 255);
         }
         return value;
     }
@@ -124,37 +132,37 @@ class MMU {
         if(address <= 0x7FFF) {
             //cartridge memory
         } else if(address >= 0x8000 && address <= 0x9FFF) {
-            //video RAM
+            this.vram[address - 0x8000] = value;
         } else if(address >= 0xA000 && address <= 0xBFFF) {
-            //cartridge external RAM
+            throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xC000 && address <= 0xDFFF) {
-            //working RAM
+            throw new Error('Not yet implemented');//working RAM
         } else if(address >= 0xE000 && address <= 0xFDFF) {
-            //(reserved) working RAM shadow
+            throw new Error('Not yet implemented');//(reserved) working RAM shadow
         } else if(address >= 0xFE00 && address <= 0xFE9F) {
-            //oam
+            throw new Error('Not yet implemented');//oam
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
-            //io
+            throw new Error('Not yet implemented');//io
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
-            //zero page ram
+            this.zeroPage[address - 0xFF00] = value;
         }
     }
 
     readWord(address) {
-        return readByte(address) + (readByte(address + 1) << 8);
+        return this.readByte(address) + (this.readByte(address + 1) << 8);
     }
 
     writeWord(address, value) {
-        writeByte(address, value & 0x00FF);
-        writeByte(address + 1, value >> 8);
+        this.writeByte(address, value & 0x00FF);
+        this.writeByte(address + 1, value >> 8);
     }
 }
 export default MMU;
 ```
 
-Each read and write operation will now be mapped to the correct section of memory! All we need to do is implement each specific section of memory and add it to the correct place in the read/write methods of the MMU! We have defined a convenience 'readSignedByte' method because some operations expect a signed byte.
+Each read and write operation will now be mapped to the correct section of memory! All we need to do is implement each specific section of memory and add it to the correct place in the read/write methods of the MMU! We also have defined a convenience 'readSignedByte' method because some operations expect a signed byte.
 
-Now that the MMU is defined, let's define the necessary memory regions we need to get our emulator working. We'll define the memory regions as simple arrays on the MMU class. However, because the default BIOS value is enormous, we'll place it in its own file and import it.
+Now that the MMU is defined, let's define the necessary memory regions we need to get our emulator working. We'll define the memory regions as simple arrays on the MMU class. However, because the default BIOS value is pretty big, we'll place it in its own file and import it.
 
 ```
 export default [
@@ -179,19 +187,25 @@ export default [
 
 Each of these values is an opcode that can be translated [here](http://pastraiser.com/cpu/gameboy/gameboy_opcodes.html) to get the actual operations the CPU is doing. The full disassembly can be found (with comments) [here](https://gist.github.com/drhelius/6063288).
 
-Let's also define the video RAM. Because the video ram can be thought of as an array of memory, we'll simply define it as an array member on the MMU class. We'll import and initialize the BIOS as well.
+Let's also define the video RAM and zero page RAM. Because they can be thought of as an array of memory, we'll simply define it as an array member on the MMU class. We'll import and initialize the BIOS as well.
 
 ```
 import defaultBios from './bios';
 
 class MMU {
     vram = [];
+    zeroPage = [];
     bios = defaultBios;
     ...
 }
 ```
 
-Finally, we'll drop in the BIOS and video ram into their proper locations into the MMU. Now, the memory architecture is, believe it or not, complete. This is all we need to create a barebones Gameboy memory implementation.
+Finally, we'll drop in the BIOS, video RAM, and zero page RAM into their proper locations into the MMU. Before we move to the processor, we'll need to implement the memory structure of the hardware IO memory section (addresses 0xFF00 - 0xFF7F). The BIOS depends on this section to work correctly, so let's create it beforehand.
+
+## Hardware I/0
+The first part of the hardware I/O we need to implement is the GPU. 
+
+### GPU
 
 ## Processor
 The GameBoy processor is a modified Zilog Z80. It contains a number of byte and word registers. We'll go over the basics here. For a more detailed description, visit this [link](http://gameboy.mongenel.com/dmg/lesson1.html).
@@ -311,8 +325,7 @@ Addr_004A:
 ```
 
 #### Section 4
-This section actually turns on the LCD screen and scrolls the logo that was previously written to Video RAM on the screen. There is also some timing magic that plays the two startup tones at a certain time. It shouldn't be too difficult to trace through the code.
-
+This section actually turns on the LCD screen and scrolls the logo that was previously written to Video RAM on the screen. There is also some timing magic that plays the two startup tones at a certain time. This section depends on the GPU timings to be set up correctly in the hardware I/O memory map.
 
 ```
 ; === Scroll logo on screen, and play logo sound===
@@ -330,7 +343,7 @@ Addr_0060:
 Addr_0062:
     LD C,$0c		; [0x0E, 0x0C]
 Addr_0064:
-    LD A,($FF00+$44)	; [0xF0, 0x44]
+    LD A,($FF00+$44)	; [0xF0, 0x44] Grab the current GPU scan line from hardware i/o
     CP $90		; [0xFE, 0x90]
     JR NZ, Addr_0064	; [0x20, 0xFA]
     DEC C			; [0x0D]

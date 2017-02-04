@@ -231,7 +231,6 @@ class Z80 {
         const mmu = this.mmu;
         const clock = this.clock;
 
-
         console.log(`Current Opcode: ${opcode.toString(16)}`); //eslint-disable-line no-console
         if(opcode === 0xCB) {
             registers.pc++;
@@ -395,6 +394,7 @@ class Z80 {
                 case 0x21: {
                     registers.l = mmu.readByte(registers.pc);
                     registers.h = mmu.readByte(registers.pc + 1);
+
                     registers.pc += 2;
 
                     clock.m = 3;
@@ -437,7 +437,7 @@ class Z80 {
                 }
                 //JR Z, n
                 case 0x28: {
-                    var address = mmu.mmu.readSignedByte(registers.pc);
+                    var address = mmu.readSignedByte(registers.pc);
 
                     registers.pc++;
                     clock.m = 2;
@@ -610,7 +610,7 @@ class Z80 {
                     registers.sp--;
                     mmu.writeByte(registers.sp, registers.b);
 
-                    Z80._r.sp--;
+                    registers.sp--;
                     mmu.writeByte(registers.sp, registers.c);
 
                     clock.m = 1;
@@ -641,6 +641,7 @@ class Z80 {
                 //LDH (a8),A
                 case 0xE0: {
                     const address = mmu.readByte(registers.pc);
+                    if(address === 0x50) throw new Error('end of program');
                     mmu.writeByte(0xFF00 + address, registers.a);
 
                     registers.pc++;
@@ -714,7 +715,7 @@ class Z80 {
     rl(register) {
         const registers = this.registers;
         const value = registers[register];
-        let originalCarry = this.isFlagSet(CARRY_FLAG) ? 1 : 0;
+        let originalCarry = this.isSet(CARRY_FLAG) ? 1 : 0;
 
         let flagsToSet = 0;
         let flagsToClear = NEGATIVE_FLAG | HALF_CARRY_FLAG;
