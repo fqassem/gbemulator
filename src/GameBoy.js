@@ -7,15 +7,16 @@ class GameBoy {
     }
 
     loop() {
-        this.clock.m = this.z80.m;
-        this.clock.t = this.z80.t;
+        const z80 = this.z80;
+        const clock = this.clock;
 
-        this.z80.step();
+        clock.m = z80.m;
+        clock.t = z80.t;
+
+        z80.step();
+        z80.printDebug();
     }
 }
 
 const gameBoy = new GameBoy();
 gameBoy.loadGame();
-gameBoy.loop();
-gameBoy.loop();
-gameBoy.loop();

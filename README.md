@@ -436,6 +436,35 @@ Addr_00E6:
     LD ($FF00+$50),A	; [0xE0, 0x50]	;turn off DMG rom
 ```
 
+## Program Shell
+Now that we've defined the opcodes for the bootstrap ROM, let's create the entry point of our application. It won't show anything useful on screen, but it will serve as a place in which we can load ROMs and control the running of the GameBoy.
+
+```
+import Z80 from './cpu/Z80';
+class GameBoy {
+    z80 = new Z80();
+    clock = { m: 0, t: 0 };
+
+    loadGame() {
+    }
+
+    loop() {
+        const z80 = this.z80;
+        const clock = this.clock;
+
+        clock.m = z80.m;
+        clock.t = z80.t;
+
+        z80.step();
+        z80.printDebug();
+    }
+}
+
+const gameBoy = new GameBoy();
+gameBoy.loadGame();
+gameBoy.loop(); //run the first command of the bootstrap ROM
+```
+
 ## References
 https://wornwinter.wordpress.com/tag/assembler/
 http://imrannazar.com/GameBoy-Emulation-in-JavaScript:-The-CPU

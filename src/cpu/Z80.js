@@ -12,6 +12,11 @@ class Z80 {
     clock = { m: 0, t: 0 };
     mmu = new MMU();
 
+    printDebug() {
+        console.log(`Registers: ${JSON.stringify(this.registers)}`); //eslint-disable-line no-console
+        console.log(`Clock: ${JSON.stringify(this.clock)}`); //eslint-disable-line no-console
+    }
+
     step() {
         //Read the current opcode and increment
         const currentInstructionOpcode = this.mmu.readByte(this.registers.pc++);
