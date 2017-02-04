@@ -437,7 +437,7 @@ Addr_00E6:
 ```
 
 ## Program Shell
-Now that we've defined the opcodes for the bootstrap ROM, let's create the entry point of our application. It won't show anything useful on screen, but it will serve as a place in which we can load ROMs and control the running of the GameBoy.
+Now that we've defined the opcodes for the bootstrap ROM, let's create the entry point of our application. It won't show anything useful on screen, but it will serve as a place in which we can load ROMs and control the running of the GameBoy. We provide an 'interface' for the browser to use via the window object. That way, we can easily call the GameBoy commands from our HTML.
 
 ```
 import Z80 from './cpu/Z80';
@@ -461,8 +461,8 @@ class GameBoy {
 }
 
 const gameBoy = new GameBoy();
+window.gameBoy = gameBoy;
 gameBoy.loadGame();
-gameBoy.loop(); //run the first command of the bootstrap ROM
 ```
 
 ## References

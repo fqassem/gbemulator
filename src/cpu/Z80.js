@@ -12,9 +12,15 @@ class Z80 {
     clock = { m: 0, t: 0 };
     mmu = new MMU();
 
+    constructor() {
+        this.printDebug();
+    }
+
     printDebug() {
-        console.log(`Registers: ${JSON.stringify(this.registers)}`); //eslint-disable-line no-console
-        console.log(`Clock: ${JSON.stringify(this.clock)}`); //eslint-disable-line no-console
+        /* eslint-disable no-console */
+        console.log(`Registers: ${JSON.stringify(this.registers)}`);
+        console.log(`Clock: ${JSON.stringify(this.clock)}`);
+        /* eslint-enable no-console */
     }
 
     step() {
@@ -80,8 +86,6 @@ class Z80 {
         const registers = this.registers;
         let flagsToSet = NEGATIVE_FLAG;
         let flagsToClear = 0;
-
-
 
         if(registers[register] & 0x0f) {
             flagsToClear |= HALF_CARRY_FLAG;
@@ -226,6 +230,9 @@ class Z80 {
         const registers = this.registers;
         const mmu = this.mmu;
         const clock = this.clock;
+
+
+        console.log(`Current Opcode: ${opcode.toString(16)}`); //eslint-disable-line no-console
         if(opcode === 0xCB) {
             registers.pc++;
             this.mapCbOpcodeToFunction(opcode);

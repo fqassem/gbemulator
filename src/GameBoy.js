@@ -14,9 +14,10 @@ class GameBoy {
         clock.t = z80.t;
 
         z80.step();
-        z80.printDebug();
+        this.z80.printDebug();
     }
 }
 
 const gameBoy = new GameBoy();
+window.gameBoy = gameBoy;
 gameBoy.loadGame();
