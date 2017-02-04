@@ -119,6 +119,37 @@ class Z80 {
         this.clearFlags(flagsToClear);
     }
 
+    sub(register) {
+        const value = registers[register];
+
+        let flagsToSet = NEGATIVE_FLAG;
+        let flagsToClear = 0;
+
+        if(value > registers.a) {
+            flagsToSet |= CARRY_FLAG;
+        }
+        else {
+            flagsToClear |= CARRY_FLAG;
+        }
+
+        if((value & 0x0f) > (registers.a & 0x0f)) {
+            flagsToSet |= HALF_CARRY_FLAG;
+        } else {
+            flagsToClear |= HALF_CARRY_FLAG;
+        }
+
+        registers.a -= value;
+
+        if(registers.a) {
+            flagsToClear |= ZERO_FLAG;
+        } else {
+            flagsToSet |= ZERO_FLAG;
+        }
+
+        this.setFLags(flagsToSet);
+        this.clearFlags(flagsToClear);
+    }
+
     mapOpcodeToFunction(opcode) {
         const registers = this.registers;
         const mmu = this.mmu;
@@ -129,6 +160,14 @@ class Z80 {
             switch(opcode) {
                 //NOP
                 case 0x00: {
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
+                //INC B
+                case 0x04: {
+                    this.inc('b');
+
                     clock.m = 1;
                     clock.t = 4;
                     break;
@@ -164,6 +203,32 @@ class Z80 {
 
                     clock.m = 1;
                     clock.t = 4;
+                    break;
+                }
+                //DEC D
+                case 0x15: {
+                    this.dec('d');
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
+                //LD D, d8
+                case 0x16: {
+                    registers.d = mmu.readByte(registers.pc);
+
+                    registers.pc++;
+                    clock.m = 2;
+                    clock.t = 8;
+                    break;
+                }
+                //DEC E
+                case 0x1D: {
+                    this.dec('e');
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
                 }
                 //LD C, d8
                 case 0x0E: {
@@ -210,6 +275,15 @@ class Z80 {
                 case 0x1A: {
                     registers.a = mmu.rb((registers.d << 8) + registers.e);
 
+                    clock.m = 2;
+                    clock.t = 8;
+                    break;
+                }
+                //LD E,d8
+                case 0x1E: {
+                    registers.e = mmu.rb(registers.pc);
+
+                    registers.pc++;
                     clock.m = 2;
                     clock.t = 8;
                     break;
@@ -263,6 +337,14 @@ class Z80 {
                     clock.m = 1;
                     clock.t = 8;
 
+                    break;
+                }
+                //INC H
+                case 0x24: {
+                    this.inc('h');
+
+                    clock.m = 1;
+                    clock.t = 4;
                     break;
                 }
                 //JR Z, n
@@ -328,6 +410,22 @@ class Z80 {
                     clock.t = 8;
                     break;
                 }
+                //LD D, A
+                case 0x57: {
+                    registers.h = registers.a;
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
+                //LD H, A
+                case 0x67: {
+                    registers.h = registers.a;
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
                 //LD (HL), A
                 case 0x77: {
                     mmu.writeByte((registers.h << 8) + registers.l, registers.a);
@@ -342,6 +440,23 @@ class Z80 {
 
                     clock.m = 1;
                     clock.t = 4;
+                    break;
+                }
+                //LD A, H
+                case 0x7C: {
+                    registers.a = registers.h;
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
+                //SUB B
+                case 0x90: {
+                    this.sub('b');
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
                 }
                 //XOR A
                 case 0xAF: {
@@ -389,6 +504,24 @@ class Z80 {
                     registers.pc += 2;
                     clock.m = 4;
                     clock.t = 16;
+                    break;
+                }
+                //LDH A,(a8)
+                case 0xF0: {
+                    const byteAtAddress = mmu.readByte(0xFF00 + mmu.readByte(registers.pc));
+                    registers.a = byteAtAddress;
+
+                    registers.pc++;
+                    clock.m = 2;
+                    clock.t = 12;
+                    break;
+                }
+                //LD A, ($FF00+C)
+                case 0xF2: {
+                    registers.a = mmu.readByte(0xFF00 + registers.c);
+
+                    clock.m = 2;
+                    clock.t = 8;
                     break;
                 }
                 //CP n

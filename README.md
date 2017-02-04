@@ -313,57 +313,59 @@ Addr_004A:
 #### Section 4
 This section actually turns on the LCD screen and scrolls the logo that was previously written to Video RAM on the screen. There is also some timing magic that plays the two startup tones at a certain time. It shouldn't be too difficult to trace through the code.
 
+
 ```
 ; === Scroll logo on screen, and play logo sound===
 
 Addr_0055:
-    LD H,A		; $0055  Initialize scroll count, H=0
-    LD A,$64		; $0056
-    LD D,A		; $0058  set loop count, D=$64
-    LD ($FF00+$42),A	; $0059  Set vertical scroll register
-    LD A,$91		; $005b
-    LD ($FF00+$40),A	; $005d  Turn on LCD, showing Background
-    INC B			; $005f  Set B=1
+    LD H,A		    ; [0x67]  Initialize scroll count, H=0
+    LD A,$64		; [0x3E, 0x64]
+    LD D,A		    ; [0x57]  set loop count, D=$64
+    LD ($FF00+$42),A	   ; [0xE0, 0x42]  Set vertical scroll register
+    LD A,$91		       ; [0x3E, 0x91]
+    LD ($FF00+$40),A	   ; [0xE0, 0x40]  Turn on LCD, showing Background
+    INC B			; [0x04]
 Addr_0060:
-    LD E,$02		; $0060
+    LD E,$02		; [0x1E, 0x02]
 Addr_0062:
-    LD C,$0c		; $0062
+    LD C,$0c		; [0x0E, 0x0C]
 Addr_0064:
-    LD A,($FF00+$44)	; $0064  wait for screen frame
-    CP $90		; $0066
-    JR NZ, Addr_0064	; $0068
-    DEC C			; $006a
-    JR NZ, Addr_0064	; $006b
-    DEC E			; $006d
-    JR NZ, Addr_0062	; $006e
+    LD A,($FF00+$44)	; [0xF0, 0x44]
+    CP $90		; [0xFE, 0x90]
+    JR NZ, Addr_0064	; [0x20, 0xFA]
+    DEC C			; [0x0D]
+    JR NZ, Addr_0064	; [0x20, 0xF7]
+    DEC E			; [0x1D]
+    JR NZ, Addr_0062	; [0x20, 0xF2]
 
-    LD C,$13		; $0070
-    INC H			; $0072  increment scroll count
-    LD A,H		; $0073
-    LD E,$83		; $0074
-    CP $62		; $0076  $62 counts in, play sound #1
-    JR Z, Addr_0080	; $0078
-    LD E,$c1		; $007a
-    CP $64		; $007c
-    JR NZ, Addr_0086	; $007e  $64 counts in, play sound #2
+    LD C,$13		; [0x0E, 0x13]
+    INC H			; [0x24]  increment scroll count
+    LD A,H		; [0x7C]
+    LD E,$83		; [0x1E, 0x83]
+    CP $62		; [0xFE, 0x62]  $62 counts in, play sound #1
+    JR Z, Addr_0080	; [0x28, 0x06]
+    LD E,$c1		; [0x1E, 0xC1]
+    CP $64		; [0xFE, 0x64]
+    JR NZ, Addr_0086	; [0x20, 0x06]  $64 counts in, play sound #2
+
 Addr_0080:
-    LD A,E		; $0080  play sound
-    LD ($FF00+C),A	; $0081
-    INC C			; $0082
-    LD A,$87		; $0083
-    LD ($FF00+C),A	; $0085
+    LD A,E		; [0x7B]  play sound
+    LD ($FF00+C),A	; [0xE2]
+    INC C			; [0x0C]
+    LD A,$87		; [0x3E, 0x87]
+    LD ($FF00+C),A	; [0xF2] ------- possible error in original transcription here. command is F2 not E2
 Addr_0086:
-    LD A,($FF00+$42)	; $0086
-    SUB B			; $0088
-    LD ($FF00+$42),A	; $0089  scroll logo up if B=1
-    DEC D			; $008b  
-    JR NZ, Addr_0060	; $008c
+    LD A,($FF00+$42)	; [0xF0, 0x42]
+    SUB B			; [0x90]
+    LD ($FF00+$42),A	; [0xE0, 0x42]  scroll logo up if B=1
+    DEC D			; [0x15]  
+    JR NZ, Addr_0060	; [0x20, 0xD2]
 
-    DEC B			; $008e  set B=0 first time
-    JR NZ, Addr_00E0	; $008f    ... next time, cause jump to "Nintendo Logo check"
+    DEC B			; [0x05]  set B=0 first time
+    JR NZ, Addr_00E0	; [0x20, 0x4F]    ... next time, cause jump to "Nintendo Logo check"
 
-    LD D,$20		; $0091  use scrolling loop to pause
-    JR Addr_0060	; $0093
+    LD D,$20		; [0x16, 0x20]  use scrolling loop to pause
+    JR Addr_0060	; [0x18, 0xCB]
 ```
 
 #### Section 5
