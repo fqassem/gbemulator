@@ -293,20 +293,21 @@ Addr_0039:
 #### Section 3
 We won't go too much into detail for the following sections. The code gets a bit nebulous, so we'll just talk about them high level. This section of code sets up the GameBoy's tile map. The tile map is a section of memory that the GameBoy uses to get around it's 8kb memory limitation. Rather than define every pixel on screen, it uses a map of tiles to draw reusable blocks, saving a lot of memory.
 
+
 ```
-    LD A,$19		; $0040  Setup background tilemap
-    LD ($9910),A	; $0042
-    LD HL,$992f		; $0045
-    Addr_0048:
-    LD C,$0c		; $0048
+    LD A,$19		; [0x3E, 0x19]  Setup background tilemap
+    LD ($9910),A	; [0xEA, 0x10, 0x99]
+    LD HL,$992f		; [0x21, 0x2F, 0x99]
+Addr_0048:
+    LD C,$0c		; [0x0E, 0x0C]
 Addr_004A:
-    DEC A			; $004a
-    JR Z, Addr_0055	; $004b
-    LD (HL-),A		; $004d
-    DEC C			; $004e
-    JR NZ, Addr_004A	; $004f
-    LD L,$0f		; $0051
-    JR Addr_0048	; $0053
+    DEC A			; [0x3D]
+    JR Z, Addr_0055	; [0x28]
+    LD (HL-),A		; [0x32]
+    DEC C			; [0x0D]
+    JR NZ, Addr_004A	; [0x20, 0xF9]
+    LD L,$0f		; [0x2E, 0x0F]
+    JR Addr_0048	; [0x18, 0xF3]
 ```
 
 #### Section 4
