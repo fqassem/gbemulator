@@ -27,7 +27,7 @@ class Z80 {
     }
 
     isSet(flag) {
-        return (this.registers.f & flag)
+        return (this.registers.f & flag);
     }
 
     xor(value) {
@@ -72,29 +72,33 @@ class Z80 {
     }
 
     dec(register) {
+        const registers = this.registers;
         let flagsToSet = NEGATIVE_FLAG;
         let flagsToClear = 0;
 
-    	if(value & 0x0f) {
+
+
+        if(registers[register] & 0x0f) {
             flagsToClear |= HALF_CARRY_FLAG;
         }
-    	else {
+        else {
             flagsToSet |= HALF_CARRY_FLAG;
         }
 
-	    registers[register]--;
+        registers[register]--;
 
-       if(registers[register] === 0) {
-           flagsToSet |= ZERO_FLAG;
-       } else {
-           flagsToClear |= ZERO_FLAG;
-       }
+        if(registers[register] === 0) {
+            flagsToSet |= ZERO_FLAG;
+        } else {
+            flagsToClear |= ZERO_FLAG;
+        }
 
-       this.setFlags(flagsToSet);
-       this.clearFlags(flagsToClear);
+        this.setFlags(flagsToSet);
+        this.clearFlags(flagsToClear);
     }
 
     add(value) {
+        const registers = this.registers;
         const result = registers.a + value;
 
         let flagsToSet = 0;
@@ -126,21 +130,22 @@ class Z80 {
     }
 
     cp(operand) {
+        const registers = this.registers;
         let a = registers.a;
 
         let flagsToSet = NEGATIVE_FLAG;
-        let clearFlags = 0;
+        let flagsToClear = 0;
 
         if(a === operand) {
             flagsToSet |= ZERO_FLAG;
         } else {
-            clearFlags |= ZERO_FLAG;
+            flagsToClear |= ZERO_FLAG;
         }
 
         if(operand > a) {
             flagsToSet |= CARRY_FLAG;
         } else {
-            clearFlags |= CARRY_FLAG;
+            flagsToClear |= CARRY_FLAG;
         }
 
         if((operand & 0x0F) > (a & 0x0F)) {
@@ -154,6 +159,7 @@ class Z80 {
     }
 
     sub(register) {
+        const registers = this.registers;
         const value = registers[register];
 
         let flagsToSet = NEGATIVE_FLAG;
@@ -185,11 +191,12 @@ class Z80 {
     }
 
     rla(register) {
-        let carry = this.isSet(FLAGS_CARRY) ? 1 : 0;
+        const registers = this.registers;
+        let carry = this.isSet(CARRY_FLAG) ? 1 : 0;
         const value = registers[register];
 
         let flagsToSet = 0;
-        let flagsToClear = FLAGS_NEGATIVE | FLAGS_HALFCARRY;
+        let flagsToClear = NEGATIVE_FLAG | HALF_CARRY_FLAG;
 
         if(value & 0x80) {
             flagsToSet |= CARRY_FLAG;
@@ -203,7 +210,7 @@ class Z80 {
         if(registers[register]) {
             flagsToClear |= ZERO_FLAG;
         } else {
-             flagsToSet |= ZERO_FLAG;
+            flagsToSet |= ZERO_FLAG;
         }
 
         this.setFlags(flagsToSet);
@@ -375,7 +382,7 @@ class Z80 {
                 //LD HL, d16
                 case 0x21: {
                     registers.l = mmu.rb(registers.pc);
-                    registers.h = mm.rb(registers.pc + 1);
+                    registers.h = mmu.rb(registers.pc + 1);
                     registers.pc += 2;
 
                     clock.m = 3;
@@ -425,10 +432,10 @@ class Z80 {
                     clock.t = 8;
 
                     if(this.isSet(ZERO_FLAG)) {
-                         registers.pc += address;
-                         clock.m += 1;
-                         clock.t += 4;
-                     }
+                        registers.pc += address;
+                        clock.m += 1;
+                        clock.t += 4;
+                    }
 
                     break;
                 }
@@ -545,7 +552,7 @@ class Z80 {
                 }
                 //ADD A, (HL)
                 case 0x86: {
-                    this.add(mmu.readByte((regsiters.h << 8) + registers.l));
+                    this.add(mmu.readByte((registers.h << 8) + registers.l));
 
                     clock.m = 1;
                     clock.t = 8;
@@ -573,6 +580,7 @@ class Z80 {
 
                     clock.m = 1;
                     clock.t = 8;
+                    break;
                 }
                 //POP BC
                 case 0xC1: {
@@ -638,7 +646,7 @@ class Z80 {
                 }
                 //LD (a16), A
                 case 0xEA: {
-                    const wordAtAddress = mmu.readWord(registers.pc)
+                    const wordAtAddress = mmu.readWord(registers.pc);
                     mmu.writeByte(wordAtAddress, registers.a);
 
                     registers.pc += 2;
@@ -678,33 +686,37 @@ class Z80 {
     }
 
     bit(bitNumber, value) {
+        let flagsToSet = 0;
+        let flagsToClear = NEGATIVE_FLAG;
+
         if(value & (1 << bitNumber)) {
-            clearFlags(ZERO_FLAG);
+            flagsToClear |= ZERO_FLAG;
         } else {
-            setFlags(ZERO_FLAG);
+            flagsToSet |= ZERO_FLAG;
         }
 
-        clearFlags(NEGATIVE_FLAG);
-        setFlags(HALF_CARRY_FLAG);
+        this.clearFlags(flagsToClear);
+        this.setFlags(flagsToSet);
     }
 
     rl(register) {
+        const registers = this.registers;
         const value = registers[register];
         let originalCarry = this.isFlagSet(CARRY_FLAG) ? 1 : 0;
 
         let flagsToSet = 0;
-        let flagsToClear = FLAGS_NEGATIVE | FLAGS_HALFCARRY;
+        let flagsToClear = NEGATIVE_FLAG | HALF_CARRY_FLAG;
 
-    	if(value & 0x80) {
+        if(value & 0x80) {
             flagsToSet |= CARRY_FLAG;
         } else {
             flagsToClear |= CARRY_FLAG;
         }
 
-    	registers[register] <<= 1;
-    	registers[register] += carry;
+        registers[register] <<= 1;
+        registers[register] += originalCarry;
 
-    	if(registers[register]) {
+        if(registers[register]) {
             flagsToClear |= ZERO_FLAG;
         } else {
             flagsToSet |= ZERO_FLAG;
@@ -716,7 +728,7 @@ class Z80 {
 
     mapCbOpcodeToFunction(opcode) {
         const clock = this.clock;
-        const mmu = this.mmu;
+        const registers = this.registers;
 
         switch(opcode) {
             //RL C
