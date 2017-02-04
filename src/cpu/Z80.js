@@ -1,4 +1,3 @@
-import Clock from './Clock';
 import MMU from '../memory/MMU';
 
 const ZERO_FLAG = 1 << 7;
@@ -33,14 +32,18 @@ class Z80 {
 
     xor(value) {
         const registers = this.registers;
+        let flagsToSet = 0;
+        let flagsToClear = CARRY_FLAG | NEGATIVE_FLAG | HALF_CARRY_FLAG;
 
         registers.a ^= value;
         if(registers.a) {
-            clearFlags(ZERO_FLAG);
+            flagsToClear |= ZERO_FLAG;
         } else {
-            setFlags(ZERO_FLAG);
+            flagsToSet |= ZERO_FLAG;
         }
-        clearFlags(CARRY_FLAG | NEGATIVE_FLAG | HALF_CARRY_FLAG);
+
+        this.setFlags(flagsToSet);
+        this.clearFlags(flagsToClear);
     }
 
     inc(register) {
@@ -89,6 +92,37 @@ class Z80 {
 
        this.setFlags(flagsToSet);
        this.clearFlags(flagsToClear);
+    }
+
+    add(value) {
+        const result = registers.a + value;
+
+        let flagsToSet = 0;
+        let flagsToClear = NEGATIVE_FLAG;
+
+        if(result & 0xFF00) {
+            flagsToSet |= CARRY_FLAG;
+        } else {
+            flagsToClear |= CARRY_FLAG;
+        }
+
+        registers.a = result & 0xFF;
+
+        if(registers.a) {
+            flagsToClear |= ZERO_FLAG;
+        } else {
+            flagsToSet |= ZERO_FLAG;
+        }
+
+        if(((registers.a & 0x0F) + (value & 0x0F)) > 0xFF) {
+            flagsToSet |= HALF_CARRY_FLAG;
+        }
+        else {
+            flagsToClear |= HALF_CARRY_FLAG;
+        }
+
+        this.setFlags(flagsToSet);
+        this.setFlags(flagsToClear);
     }
 
     cp(operand) {
@@ -147,6 +181,32 @@ class Z80 {
         }
 
         this.setFLags(flagsToSet);
+        this.clearFlags(flagsToClear);
+    }
+
+    rla(register) {
+        let carry = this.isSet(FLAGS_CARRY) ? 1 : 0;
+        const value = registers[register];
+
+        let flagsToSet = 0;
+        let flagsToClear = FLAGS_NEGATIVE | FLAGS_HALFCARRY;
+
+        if(value & 0x80) {
+            flagsToSet |= CARRY_FLAG;
+        } else {
+            flagsToClear |= CARRY_FLAG;
+        }
+
+        registers[register] <<= 1;
+        registers[register] += carry;
+
+        if(registers[register]) {
+            flagsToClear |= ZERO_FLAG;
+        } else {
+             flagsToSet |= ZERO_FLAG;
+        }
+
+        this.setFlags(flagsToSet);
         this.clearFlags(flagsToClear);
     }
 
@@ -221,6 +281,14 @@ class Z80 {
                     registers.pc++;
                     clock.m = 2;
                     clock.t = 8;
+                    break;
+                }
+                //RLA
+                case 0x17: {
+                    this.rl('a');
+
+                    clock.m = 1;
+                    clock.t = 4;
                     break;
                 }
                 //DEC E
@@ -443,6 +511,14 @@ class Z80 {
                     clock.t = 8;
                     break;
                 }
+                //LD A, B
+                case 0x78: {
+                    registers.a = registers.b;
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
                 //LD A, E
                 case 0x7B: {
                     registers.a = registers.e;
@@ -457,6 +533,22 @@ class Z80 {
 
                     clock.m = 1;
                     clock.t = 4;
+                    break;
+                }
+                //LD A, L
+                case 0x7D:{
+                    registers.a = registers.l;
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
+                //ADD A, (HL)
+                case 0x86: {
+                    this.add(mmu.readByte((regsiters.h << 8) + registers.l));
+
+                    clock.m = 1;
+                    clock.t = 8;
                     break;
                 }
                 //SUB B
@@ -475,6 +567,24 @@ class Z80 {
                     clock.t = 4;
                     break;
                 }
+                //CP (HL)
+                case 0xBE: {
+                    this.cp(mmu.readByte((registers.h << 8)+ registers.l));
+
+                    clock.m = 1;
+                    clock.t = 8;
+                }
+                //POP BC
+                case 0xC1: {
+                    registers.c = mmu.readByte(registers.sp);
+                    registers.sp++;
+                    registers.b = mmu.readByte(registers.sp);
+                    registers.sp++;
+
+                    clock.m = 1;
+                    clock.t = 12;
+                    break;
+                }
                 //PUSH BC
                 case 0xC5: {
                     registers.sp--;
@@ -488,6 +598,15 @@ class Z80 {
 
                     break;
                 }
+                //RET
+                case 0xC9: {
+                    registers.pc = mmu.readWord(registers.sp);
+                    registers.sp += 2;
+
+                    clock.m = 1;
+                    clock.t = 16;
+                    break;
+                }
                 // CALL nn
                 case 0xCD: {
                     mmu.writeWord(registers.sp - 2, registers.pc + 2);
@@ -498,7 +617,6 @@ class Z80 {
                     clock.m = 3;
                     clock.t = 24;
                     break;
-
                 }
                 //LDH (a8),A
                 case 0xE0: {
@@ -583,10 +701,10 @@ class Z80 {
             flagsToClear |= CARRY_FLAG;
         }
 
-    	value <<= 1;
-    	value += carry;
+    	registers[register] <<= 1;
+    	registers[register] += carry;
 
-    	if(value) {
+    	if(registers[register]) {
             flagsToClear |= ZERO_FLAG;
         } else {
             flagsToSet |= ZERO_FLAG;

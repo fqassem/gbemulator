@@ -371,7 +371,6 @@ Addr_0086:
 #### Section 5
 This section contains the subroutine used in section1 to scale and rotate the Nintendo logo in memory. This section also contains some checksum confirmations that compare the cartridge ROM's Nintendo logo data with the data the bootstrap ROM contains. If the comparison fails, the GameBoy is in a bad state. Presumably this was done to prevent data corruption or pirated games. If the logo comparison fails, the GameBoy locks up. Another checksum that uses the Nintendo logo bytes and cartridge header information is performed. If the sum doesn't add up to 0, the GameBoy will lock up. If these checks pass, the last two lines of the bootstrap ROM effectively remove the bootstrap ROM from memory so the memory location can be utilized by the cartridge ROM instead of being hogged by the bootstrap ROM. Finally, the last instruction of the bootstrap ROM is at position 0xFE, meaning the program counter is now pointing to address 0xFE in the memory map. Once the last instruction executes, the program counter will now contain 0x100. This address contains the first instruction of the cartridge ROM program. Execution of the cartridge program begins at this point.
 
-0x05, 0x20, 0xF5, 0x22, 0x23, 0x22, 0x23, 0xC9, 0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B,
 
 ```
 ; ==== Graphic routine ====
@@ -391,7 +390,7 @@ Addr_0098:
     INC HL		; [0x23]
     LD (HL+),A		; [0x22]
     INC HL		; [0x23]
-    RET			; [C9]
+    RET			; [0xC9]
 
 Addr_00A8:
 ;Nintendo Logo
@@ -405,33 +404,36 @@ Addr_00D8:
 
 ; ===== Nintendo logo comparison routine =====
 
+
+ 0x3E, 0x01, 0xE0, 0x50
+
 Addr_00E0:
-    LD HL,$0104		; $00e0	; point HL to Nintendo logo in cart
-    LD DE,$00a8		; $00e3	; point DE to Nintendo logo in DMG rom
+    LD HL,$0104		; [0x21, 0x01, 0x01]	; point HL to Nintendo logo in cart
+    LD DE,$00a8		; [0x11, 0xA8, 0x00]	; point DE to Nintendo logo in DMG rom
 
 Addr_00E6:
-    LD A,(DE)		; $00e6
-    INC DE		; $00e7
-    CP (HL)		; $00e8	;compare logo data in cart to DMG rom
-    JR NZ,$fe		; $00e9	;if not a match, lock up here
-    INC HL		; $00eb
-    LD A,L		; $00ec
-    CP $34		; $00ed	;do this for $30 bytes
-    JR NZ, Addr_00E6	; $00ef
+    LD A,(DE)		; [0x1A]
+    INC DE		; [0x13]
+    CP (HL)		; [0xBE]	;compare logo data in cart to DMG rom
+    JR NZ,$fe		; [0x20, 0xFE]	;if not a match, lock up here
+    INC HL		; [0x23]
+    LD A,L		; [0x7D]
+    CP $34		; [0xFE, 0x34]	;do this for $30 bytes
+    JR NZ, Addr_00E6	; [0x20, 0xF5]
 
-    LD B,$19		; $00f1
-    LD A,B		; $00f3
+    LD B,$19		; [0x06, 0x19]
+    LD A,B		; [0x78]
     Addr_00F4:
-    ADD (HL)		; $00f4
-    INC HL		; $00f5
-    DEC B			; $00f6
-    JR NZ, Addr_00F4	; $00f7
-    ADD (HL)		; $00f9
-    JR NZ,$fe		; $00fa	; if $19 + bytes from $0134-$014D  don't add to $00
+    ADD (HL)		; [0x86]
+    INC HL		; [0x23]
+    DEC B			; [0x05]
+    JR NZ, Addr_00F4	; [0x20, 0xFB]
+    ADD (HL)		; [0x86]
+    JR NZ,$fe		; [0x20, 0xFE]	; if $19 + bytes from $0134-$014D  don't add to $00
                         ;  ... lock up
 
-    LD A,$01		; $00fc
-    LD ($FF00+$50),A	; $00fe	;turn off DMG rom
+    LD A,$01		; $[0x3E, 0x01]
+    LD ($FF00+$50),A	; [0xE0, 0x50]	;turn off DMG rom
 ```
 
 ## References
