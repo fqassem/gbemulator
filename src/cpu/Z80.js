@@ -349,7 +349,7 @@ class Z80 {
                 }
                 // LD A, (DE)
                 case 0x1A: {
-                    registers.a = mmu.rb((registers.d << 8) + registers.e);
+                    registers.a = mmu.readByte((registers.d << 8) + registers.e);
 
                     clock.m = 2;
                     clock.t = 8;
@@ -357,7 +357,7 @@ class Z80 {
                 }
                 //LD E,d8
                 case 0x1E: {
-                    registers.e = mmu.rb(registers.pc);
+                    registers.e = mmu.readByte(registers.pc);
 
                     registers.pc++;
                     clock.m = 2;
@@ -381,8 +381,8 @@ class Z80 {
                 }
                 //LD HL, d16
                 case 0x21: {
-                    registers.l = mmu.rb(registers.pc);
-                    registers.h = mmu.rb(registers.pc + 1);
+                    registers.l = mmu.readByte(registers.pc);
+                    registers.h = mmu.readByte(registers.pc + 1);
                     registers.pc += 2;
 
                     clock.m = 3;
@@ -441,7 +441,7 @@ class Z80 {
                 }
                 //LD L, d8
                 case 0x2E: {
-                    registers.l = mmu.rb(registers.pc);
+                    registers.l = mmu.readByte(registers.pc);
 
                     registers.pc++;
                     clock.m = 2;

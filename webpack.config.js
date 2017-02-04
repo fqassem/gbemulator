@@ -1,7 +1,7 @@
 const webpack = require('webpack');
 
 module.exports = {
-    entry: './GameBoy.js',
+    entry: './src/GameBoy.js',
     output: {
         path: __dirname + '/output',
         filename: 'emulator.js'
