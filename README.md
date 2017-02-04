@@ -231,7 +231,7 @@ Upon boot, the GameBoy's RAM contains a bunch of junk data. We reset the video R
 
 Finally, the last section sets up the audio. Let's not concern ourselves with how it works. Instead let's just implement the opcodes it uses.
 
-#### Part 2
+#### Section 1
 ```
     LD SP,$fffe		 ; [0x31, 0xFE, 0XFF] - Set stack pointer to FFFE (top of the stack)
 
@@ -258,9 +258,9 @@ Addr_0007:           ; This subroutine clears the video RAM, starting at 9FFF an
 #### Section 2
 In this section of the bootstrap, we're setting up the video RAM to display the Nintendo logo. Each background or window tile has a certain shade associated with it. Memory location FF47 is a special register used by the LCD hardware to define the shade of gray given to a background or window tile. For more detail, visit this [link](http://bgb.bircd.org/pandocs.htm#lcdmonochromepalettes). Basically, 0xFC is a specially chosen number used to define our 'color scheme' for the Nintendo logo.
 
-Memory address 0x0104 is where the Nintendo logo lives. We load that into register DE so we can reference this address later in the code. We point register HL to address 0x8010, which is part of our video RAM memory.
+Memory address 0x0104 is where the Nintendo logo lives on the cartridge ROM. We load that into register DE as a pointer so we can reference this address later in the code. We point register HL to address 0x8010, which within our video RAM memory.
 
-We know where the Nintendo logo lives - refer back to our memory map to see that it lives in address space 0x0104 to 0x0134. Addr_0027 is a loop that goes through each byte of the Nintendo logo. We call a subroutine on each byte twice. The subroutine located at address 0x0095 and 0x0096 of the bootstrap ROM rotates and scales the byte in memory. We'll talk more about this routine when we get to it. After this subroutine is called twice, we increment our pointer to the Nintendo logo, check if we're at the end of the logo (0x0134). If not, we continue looping. After the loop is finished, register HL is still pointing to video RAM.
+We know where the Nintendo logo lives - refer back to our memory map to see that it lives in address space 0x0104 to 0x0134. Addr_0027 is a loop that goes through each byte of the Nintendo logo. We call a graphics subroutine on each byte twice. The subroutine located at address 0x0095 and 0x0096 of the bootstrap ROM rotates and scales the byte in memory. We'll talk more about this routine when we get to it in section 5. After this subroutine is called twice on the byte, we increment our pointer to get to the next byte of the Nintendo logo. We then check if we're at the end of the logo (0x0134). If not, we continue looping. After the loop is finished, notice that register HL is still pointing to video RAM.
 
 If we're done with the Nintendo logo, we enter a loop that copies a byte over to video RAM 8 times. The result of this loop is is the registered trademark symbol that appears next to the Nintendo logo.
 
@@ -288,9 +288,149 @@ Addr_0039:
     INC HL		        ; [0x23]
     DEC B			    ; [0x05] Decrement loop counter
     JR NZ, Addr_0039	; [0x20, 0xF9] If we haven't looped through 8 times, keep looping
-
 ```
 
+#### Section 3
+We won't go too much into detail for the following sections. The code gets a bit nebulous, so we'll just talk about them high level. This section of code sets up the GameBoy's tile map. The tile map is a section of memory that the GameBoy uses to get around it's 8kb memory limitation. Rather than define every pixel on screen, it uses a map of tiles to draw reusable blocks, saving a lot of memory.
+
+```
+    LD A,$19		; $0040  Setup background tilemap
+    LD ($9910),A	; $0042
+    LD HL,$992f		; $0045
+    Addr_0048:
+    LD C,$0c		; $0048
+Addr_004A:
+    DEC A			; $004a
+    JR Z, Addr_0055	; $004b
+    LD (HL-),A		; $004d
+    DEC C			; $004e
+    JR NZ, Addr_004A	; $004f
+    LD L,$0f		; $0051
+    JR Addr_0048	; $0053
+```
+
+#### Section 4
+This section actually turns on the LCD screen and scrolls the logo that was previously written to Video RAM on the screen. There is also some timing magic that plays the two startup tones at a certain time. It shouldn't be too difficult to trace through the code.
+
+```
+; === Scroll logo on screen, and play logo sound===
+
+Addr_0055:
+    LD H,A		; $0055  Initialize scroll count, H=0
+    LD A,$64		; $0056
+    LD D,A		; $0058  set loop count, D=$64
+    LD ($FF00+$42),A	; $0059  Set vertical scroll register
+    LD A,$91		; $005b
+    LD ($FF00+$40),A	; $005d  Turn on LCD, showing Background
+    INC B			; $005f  Set B=1
+Addr_0060:
+    LD E,$02		; $0060
+Addr_0062:
+    LD C,$0c		; $0062
+Addr_0064:
+    LD A,($FF00+$44)	; $0064  wait for screen frame
+    CP $90		; $0066
+    JR NZ, Addr_0064	; $0068
+    DEC C			; $006a
+    JR NZ, Addr_0064	; $006b
+    DEC E			; $006d
+    JR NZ, Addr_0062	; $006e
+
+    LD C,$13		; $0070
+    INC H			; $0072  increment scroll count
+    LD A,H		; $0073
+    LD E,$83		; $0074
+    CP $62		; $0076  $62 counts in, play sound #1
+    JR Z, Addr_0080	; $0078
+    LD E,$c1		; $007a
+    CP $64		; $007c
+    JR NZ, Addr_0086	; $007e  $64 counts in, play sound #2
+Addr_0080:
+    LD A,E		; $0080  play sound
+    LD ($FF00+C),A	; $0081
+    INC C			; $0082
+    LD A,$87		; $0083
+    LD ($FF00+C),A	; $0085
+Addr_0086:
+    LD A,($FF00+$42)	; $0086
+    SUB B			; $0088
+    LD ($FF00+$42),A	; $0089  scroll logo up if B=1
+    DEC D			; $008b  
+    JR NZ, Addr_0060	; $008c
+
+    DEC B			; $008e  set B=0 first time
+    JR NZ, Addr_00E0	; $008f    ... next time, cause jump to "Nintendo Logo check"
+
+    LD D,$20		; $0091  use scrolling loop to pause
+    JR Addr_0060	; $0093
+```
+
+#### Section 5
+This section contains the subroutine used in section1 to scale and rotate the Nintendo logo in memory. This section also contains some checksum confirmations that compare the cartridge ROM's Nintendo logo data with the data the bootstrap ROM contains. If the comparison fails, the GameBoy is in a bad state. Presumably this was done to prevent data corruption or pirated games. If the logo comparison fails, the GameBoy locks up. Another checksum that uses the Nintendo logo bytes and cartridge header information is performed. If the sum doesn't add up to 0, the GameBoy will lock up. If these checks pass, the last two lines of the bootstrap ROM effectively remove the bootstrap ROM from memory so the memory location can be utilized by the cartridge ROM instead of being hogged by the bootstrap ROM. Finally, the last instruction of the bootstrap ROM is at position 0xFE, meaning the program counter is now pointing to address 0xFE in the memory map. Once the last instruction executes, the program counter will now contain 0x100. This address contains the first instruction of the cartridge ROM program. Execution of the cartridge program begins at this point.
+
+
+```
+; ==== Graphic routine ====
+
+    LD C,A		; $0095  "Double up" all the bits of the graphics data
+    LD B,$04		; $0096     and store in Video RAM
+Addr_0098:
+    PUSH BC		; $0098
+    RL C			; $0099
+    RLA			; $009b
+    POP BC		; $009c
+    RL C			; $009d
+    RLA			; $009f
+    DEC B			; $00a0
+    JR NZ, Addr_0098	; $00a1
+    LD (HL+),A		; $00a3
+    INC HL		; $00a4
+    LD (HL+),A		; $00a5
+    INC HL		; $00a6
+    RET			; $00a7
+
+Addr_00A8:
+;Nintendo Logo
+.DB $CE,$ED,$66,$66,$CC,$0D,$00,$0B,$03,$73,$00,$83,$00,$0C,$00,$0D
+.DB $00,$08,$11,$1F,$88,$89,$00,$0E,$DC,$CC,$6E,$E6,$DD,$DD,$D9,$99
+.DB $BB,$BB,$67,$63,$6E,$0E,$EC,$CC,$DD,$DC,$99,$9F,$BB,$B9,$33,$3E
+
+Addr_00D8:
+;More video data
+.DB $3C,$42,$B9,$A5,$B9,$A5,$42,$3C
+
+; ===== Nintendo logo comparison routine =====
+
+Addr_00E0:
+    LD HL,$0104		; $00e0	; point HL to Nintendo logo in cart
+    LD DE,$00a8		; $00e3	; point DE to Nintendo logo in DMG rom
+
+Addr_00E6:
+    LD A,(DE)		; $00e6
+    INC DE		; $00e7
+    CP (HL)		; $00e8	;compare logo data in cart to DMG rom
+    JR NZ,$fe		; $00e9	;if not a match, lock up here
+    INC HL		; $00eb
+    LD A,L		; $00ec
+    CP $34		; $00ed	;do this for $30 bytes
+    JR NZ, Addr_00E6	; $00ef
+
+    LD B,$19		; $00f1
+    LD A,B		; $00f3
+    Addr_00F4:
+    ADD (HL)		; $00f4
+    INC HL		; $00f5
+    DEC B			; $00f6
+    JR NZ, Addr_00F4	; $00f7
+    ADD (HL)		; $00f9
+    JR NZ,$fe		; $00fa	; if $19 + bytes from $0134-$014D  don't add to $00
+                        ;  ... lock up
+
+    LD A,$01		; $00fc
+    LD ($FF00+$50),A	; $00fe	;turn off DMG rom
+```
+
+## References
 https://wornwinter.wordpress.com/tag/assembler/
 http://imrannazar.com/GameBoy-Emulation-in-JavaScript:-The-CPU
 https://github.com/CTurt/Cinoop/blob/990e7d92b759892e98a450b4979e887865d6757f/source/cpu.c
