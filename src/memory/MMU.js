@@ -11,17 +11,17 @@ class MMU {
         } else if(address >= 0x8000 && address <= 0x9FFF) {
             return vram[address - 0x8000];
         } else if(address >= 0xA000 && address <= 0xBFFF) {
-            //cartridge external RAM
+            throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xC000 && address <= 0xDFFF) {
-            //working RAM
+            throw new Error('Not yet implemented');//working RAM
         } else if(address >= 0xE000 && address <= 0xFDFF) {
-            //(reserved) working RAM shadow
+            throw new Error('Not yet implemented');//(reserved) working RAM shadow
         } else if(address >= 0xFE00 && address <= 0xFE9F) {
-            //oam
+            throw new Error('Not yet implemented');//oam
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
-            //io
+            throw new Error('Not yet implemented');//io
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
-            //zero page ram
+            throw new Error('Not yet implemented');//zero page ram
         }
         return valueAtAddress;
     }
@@ -40,17 +40,17 @@ class MMU {
         } else if(address >= 0x8000 && address <= 0x9FFF) {
             vram[address - 0x8000] = value;
         } else if(address >= 0xA000 && address <= 0xBFFF) {
-            //cartridge external RAM
+            throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xC000 && address <= 0xDFFF) {
-            //working RAM
+            throw new Error('Not yet implemented');//working RAM
         } else if(address >= 0xE000 && address <= 0xFDFF) {
-            //(reserved) working RAM shadow
+            throw new Error('Not yet implemented');//(reserved) working RAM shadow
         } else if(address >= 0xFE00 && address <= 0xFE9F) {
-            //oam
+            throw new Error('Not yet implemented');//oam
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
-            //io
+            throw new Error('Not yet implemented');//io
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
-            //zero page ram
+            throw new Error('Not yet implemented');//zero page ram
         }
     }
 

@@ -155,6 +155,7 @@ class Z80 {
         const mmu = this.mmu;
         const clock = this.clock;
         if(opcode === 0xCB) {
+            registers.pc++;
             this.mapCbOpcodeToFunction(opcode);
         } else {
             switch(opcode) {
@@ -410,6 +411,14 @@ class Z80 {
                     clock.t = 8;
                     break;
                 }
+                //LD C, A
+                case 0x4F: {
+                    registers.c = registers.a;
+
+                    clock.m = 1;
+                    clock.t = 4;
+                    break;
+                }
                 //LD D, A
                 case 0x57: {
                     registers.h = registers.a;
@@ -464,6 +473,19 @@ class Z80 {
 
                     clock.m = 1;
                     clock.t = 4;
+                    break;
+                }
+                //PUSH BC
+                case 0xC5: {
+                    registers.sp--;
+                    mmu.writeByte(registers.sp, registers.b);
+
+                    Z80._r.sp--;
+                    mmu.writeByte(registers.sp, registers.c);
+
+                    clock.m = 1;
+                    clock.t = 16;
+
                     break;
                 }
                 // CALL nn
@@ -548,11 +570,45 @@ class Z80 {
         setFlags(HALF_CARRY_FLAG);
     }
 
+    rl(register) {
+        const value = registers[register];
+        let originalCarry = this.isFlagSet(CARRY_FLAG) ? 1 : 0;
+
+        let flagsToSet = 0;
+        let flagsToClear = FLAGS_NEGATIVE | FLAGS_HALFCARRY;
+
+    	if(value & 0x80) {
+            flagsToSet |= CARRY_FLAG;
+        } else {
+            flagsToClear |= CARRY_FLAG;
+        }
+
+    	value <<= 1;
+    	value += carry;
+
+    	if(value) {
+            flagsToClear |= ZERO_FLAG;
+        } else {
+            flagsToSet |= ZERO_FLAG;
+        }
+
+        this.setFlags(flagsToSet);
+        this.clearFlags(flagsToClear);
+    }
+
     mapCbOpcodeToFunction(opcode) {
         const clock = this.clock;
         const mmu = this.mmu;
 
         switch(opcode) {
+            //RL C
+            case 0x11: {
+                this.rl('c');
+
+                clock.m = 2;
+                clock.t = 8;
+                break;
+            }
             //BIT 7,H
             case 0x7C: {
                 this.bit(7, registers.h);

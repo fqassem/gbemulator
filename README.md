@@ -371,26 +371,27 @@ Addr_0086:
 #### Section 5
 This section contains the subroutine used in section1 to scale and rotate the Nintendo logo in memory. This section also contains some checksum confirmations that compare the cartridge ROM's Nintendo logo data with the data the bootstrap ROM contains. If the comparison fails, the GameBoy is in a bad state. Presumably this was done to prevent data corruption or pirated games. If the logo comparison fails, the GameBoy locks up. Another checksum that uses the Nintendo logo bytes and cartridge header information is performed. If the sum doesn't add up to 0, the GameBoy will lock up. If these checks pass, the last two lines of the bootstrap ROM effectively remove the bootstrap ROM from memory so the memory location can be utilized by the cartridge ROM instead of being hogged by the bootstrap ROM. Finally, the last instruction of the bootstrap ROM is at position 0xFE, meaning the program counter is now pointing to address 0xFE in the memory map. Once the last instruction executes, the program counter will now contain 0x100. This address contains the first instruction of the cartridge ROM program. Execution of the cartridge program begins at this point.
 
+0x05, 0x20, 0xF5, 0x22, 0x23, 0x22, 0x23, 0xC9, 0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B,
 
 ```
 ; ==== Graphic routine ====
 
-    LD C,A		; $0095  "Double up" all the bits of the graphics data
-    LD B,$04		; $0096     and store in Video RAM
+    LD C,A		; [0x4F]  "Double up" all the bits of the graphics data
+    LD B,$04		; [0x06, 0x04]     and store in Video RAM
 Addr_0098:
-    PUSH BC		; $0098
-    RL C			; $0099
-    RLA			; $009b
-    POP BC		; $009c
-    RL C			; $009d
-    RLA			; $009f
-    DEC B			; $00a0
-    JR NZ, Addr_0098	; $00a1
-    LD (HL+),A		; $00a3
-    INC HL		; $00a4
-    LD (HL+),A		; $00a5
-    INC HL		; $00a6
-    RET			; $00a7
+    PUSH BC		; [0xC5]
+    RL C			; [0xCB, 0x11]
+    RLA			; [0x17]
+    POP BC		; [0xC1]
+    RL C			; [0xCB, 0x11]
+    RLA			; [0x17]
+    DEC B			; [0x05]
+    JR NZ, Addr_0098	; [0x20, 0xF5]
+    LD (HL+),A		; [0x22]
+    INC HL		; [0x23]
+    LD (HL+),A		; [0x22]
+    INC HL		; [0x23]
+    RET			; [C9]
 
 Addr_00A8:
 ;Nintendo Logo
