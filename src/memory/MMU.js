@@ -1,7 +1,6 @@
 import defaultBios from './bios';
 
 class MMU {
-    vram = [];
     zeroPage = [];
     bios = defaultBios;
 

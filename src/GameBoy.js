@@ -10,8 +10,8 @@ class GameBoy {
         const z80 = this.z80;
         const clock = this.clock;
 
-        clock.m = z80.m;
-        clock.t = z80.t;
+        clock.m += z80.m;
+        clock.t += z80.t;
 
         try {
             while(1) { //eslint-disable-line

@@ -54,7 +54,7 @@ The first 16kb of a cartridge are always available in this address space. In pra
 This 16kb section of memory could address one of the 16kb 'banks' of switchable cartridge ROM. The current ROM bank it's pointing to is controlled by the cartridge's Memory Bank Controller.
 
 ### 0x8000 - 0x9FFF: Video RAM
-This 8kb of addressable memory is reserved for the video RAM, which holds sprites and graphics.
+This 8kb of addressable memory is reserved for the video RAM, which holds sprites and graphics. It is also called the 'tile map' because it holds
 
 ### 0xA000 - 0xBFFF: Cartridge (External) RAM
 If there is RAM available on the cartridge, it is addressable in this address space.
@@ -65,8 +65,8 @@ Internal, working RAM used for temporary storage (and other things you use RAM f
 ### 0xE000 - 0xFDFF: Reserved
 This almost 8k of RAM is reserved and should not be modified. Internally, it's a shadow of the Working RAM, but Nintendo advises not to work with this area of memory.
 
-### 0xFE00 - 0xFE9F: OAM (Object Attribute Memory) or 'Sprite Information'
-This section of memory is used to store sprite positions on the screen, as well as their attributes.
+### 0xFE00 - 0xFE9F: OAM (Object Attribute Memory) or 'Sprite/Tile Information'
+This section of memory is used to store positions of tiles/sprites on the screen, as well as their attributes.
 
 ### 0xFF00 - 0xFF7F: Hardware I/O
 The LCD Display, sound, link cable, internal timers, and joypad/buttons were all managed in this section of memory.
@@ -77,7 +77,7 @@ This 128 byte section of memory is used for storage of variables that the progra
 ### 0xFFFF Interrupt Enable Register
 A special memory location for the interrupt enable register.
 
-The eagle-eyed of you will notice a section is missing. Where do addresses 0xFEA0 to 0xFEFF resolve? This section of memory is unused, so it's safely omitted.
+You might notice that a section is missing. Where do addresses 0xFEA0 to 0xFEFF resolve? This section of memory is unused, so it's safely omitted.
 
 This memory map defines the structure of the memory architecture we'll be implementing. Instead of coding up every one of these sections, let's start with the bare minimum to get the Nintendo logo to display on screen - the memory architecture 'container', the BIOS, and the Video RAM. Next we'll create the hardware I/O memory section. Hardware I/O is necessary for the BIOS to run to completion. The BIOS (and GameBoy games) depend on timing information from this section of memory, so without it our program will infinitely loop.
 
@@ -94,7 +94,6 @@ Let's create the interface and skeleton for the MMU:
 import defaultBios from './bios';
 
 class MMU {
-    vram = [];
     zeroPage = [];
     bios = defaultBios;
 
@@ -103,7 +102,7 @@ class MMU {
         if(address <= 0x7FFF) {
             return this.bios[address];
         } else if(address >= 0x8000 && address <= 0x9FFF) {
-            return this.vram[address - 0x8000];
+            throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xA000 && address <= 0xBFFF) {
             throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xC000 && address <= 0xDFFF) {
@@ -132,7 +131,7 @@ class MMU {
         if(address <= 0x7FFF) {
             //cartridge memory
         } else if(address >= 0x8000 && address <= 0x9FFF) {
-            this.vram[address - 0x8000] = value;
+            throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xA000 && address <= 0xBFFF) {
             throw new Error('Not yet implemented');//cartridge external RAM
         } else if(address >= 0xC000 && address <= 0xDFFF) {
@@ -162,7 +161,9 @@ export default MMU;
 
 Each read and write operation will now be mapped to the correct section of memory! All we need to do is implement each specific section of memory and add it to the correct place in the read/write methods of the MMU! We also have defined a convenience 'readSignedByte' method because some operations expect a signed byte.
 
-Now that the MMU is defined, let's define the necessary memory regions we need to get our emulator working. We'll define the memory regions as simple arrays on the MMU class. However, because the default BIOS value is pretty big, we'll place it in its own file and import it.
+Now that the MMU is defined, let's define the necessary memory regions we need to get our emulator working. We'll define some memory regions as simple arrays on the MMU class. Other memory regions are a bit more complex, so we'll create classes for them.
+
+The default BIOS value is pretty big, we'll place it in its own file and import it.
 
 ```
 export default [
@@ -187,25 +188,88 @@ export default [
 
 Each of these values is an opcode that can be translated [here](http://pastraiser.com/cpu/gameboy/gameboy_opcodes.html) to get the actual operations the CPU is doing. The full disassembly can be found (with comments) [here](https://gist.github.com/drhelius/6063288).
 
-Let's also define the video RAM and zero page RAM. Because they can be thought of as an array of memory, we'll simply define it as an array member on the MMU class. We'll import and initialize the BIOS as well.
+Let's also define the zero page RAM. Because it can be thought of as an array of memory, we'll simply define it as an array member on the MMU class. We'll import and initialize the BIOS here as well.
 
 ```
 import defaultBios from './bios';
 
 class MMU {
-    vram = [];
     zeroPage = [];
     bios = defaultBios;
     ...
 }
 ```
 
-Finally, we'll drop in the BIOS, video RAM, and zero page RAM into their proper locations into the MMU. Before we move to the processor, we'll need to implement the memory structure of the hardware IO memory section (addresses 0xFF00 - 0xFF7F). The BIOS depends on this section to work correctly, so let's create it beforehand.
+Finally, we'll drop in the BIOS, and zero page RAM into their proper locations into the MMU. Before we move to the processor, we'll need to implement the GPU. For now, we won't concern ourselves with how to actually display anything in the browser. Let's just focus on the in-memory implementation.
 
-## Hardware I/0
-The first part of the hardware I/O we need to implement is the GPU. 
+## GPU
+The GPU is responsible for writing pixels to the LCD screen. It's similar to cathode ray tube technology in its process. The LCD screen consists of 144 lines that are 160 pixels wide. There are actually 153 lines, but 8 aren't visible.
 
-### GPU
+The contents of what to draw on the screen is kept in memory in separate sections of the memory map. - the video memory and the object attribute memory. Video memory contains the tiles and sprites that can be drawn by the game. Object attribute memory contains the positions of the tiles and sprites.
+
+To draw the frame, start at the very top left corner of the screen at the first pixel of the first line. Set memory location that holds the current line, 0xFF44 in hardware I/O, to zero. One-by-one, draw each of the 160 pixels in the current line with the correct color. Once at the end of this line, do what's called a 'horizontal blank' - set the 'draw' pointer to the beginning of the next line of pixels. Increment scan line in memory map. Repeat this process until there is no 'next' line. At this point, the image is drawn. To draw the next image, a 'vertical blank' is performed. This resets the 'draw' pointer to the top left of the screen and the draw process is repeated.
+
+Drawing a line is not as simple as looping through an array. Remember that the GameBoy stores its tile information in video RAM and the positions of tiles in OAM, a separate section of memory. There is no pixel-for-pixel representation of the frame in memory. Each time the GameBoy draws an image, it jumps back and forth between these sections of memory and each jump takes time. Performing a horizontal or vertical blank also takes time. The timing of the GPU must be synced to the rest of the hardware or our emulator will be useless.
+
+Each operation is represented as a GPU 'mode' (held in memory address 0xFF41 of hardware I/O) and takes a certain fixed amount of time to complete:
+
+Mode 0: Horizontal blank, 204 clock cycles
+Mode 1: Vertical blank, 456 clock cycles
+Mode 2: Accessing OAM, 80 clock cycles
+Mode 3: Accessing video RAM, 172 clock cycles
+
+We can begin implementing this as follows, starting with the special GPU memory locations.
+
+```
+const HBLANK_MODE = 0;
+const VBLANK_MODE = 1;
+const OAM_MODE = 2;
+const VRAM_MODE = 3;
+
+const HBLANK_DURATION = 204;
+const VBLANK_DURATION = 456;
+const OAM_DURATION = 80;
+const VRAM_DURATION = 172;
+
+class GPU {
+    mode = 0; //0XFF41
+    currentLine = 0; //0xFF44
+    clock = 0;
+
+    step(lastOpDuration) {
+        this.clock += lastOpDuration;
+
+        switch(this.mode) {
+            case HBLANK_MODE: {
+                if(this.clock >= HBLANK_DURATION) {
+
+                }
+                break;
+            }
+            case VBLANK_MODE: {
+                if(this.clock >= VBLANK_DURATION) {
+
+                }
+                break;
+            }
+            case OAM_MODE: {
+                if(this.clock >= OAM_DURATION) {
+
+                }
+                break;
+            }
+            case VRAM_MODE: {
+                if(this.clock >= VRAM_DURATION) {
+
+                }
+                break;
+            }
+        }
+    }
+}
+export default GPU;
+```
+
 
 ## Processor
 The GameBoy processor is a modified Zilog Z80. It contains a number of byte and word registers. We'll go over the basics here. For a more detailed description, visit this [link](http://gameboy.mongenel.com/dmg/lesson1.html).
@@ -305,8 +369,7 @@ Addr_0039:
 ```
 
 #### Section 3
-We won't go too much into detail for the following sections. The code gets a bit nebulous, so we'll just talk about them high level. This section of code sets up the GameBoy's tile map. The tile map is a section of memory that the GameBoy uses to get around it's 8kb memory limitation. Rather than define every pixel on screen, it uses a map of tiles to draw reusable blocks, saving a lot of memory.
-
+We won't go too much into detail for the following sections. The code gets a bit nebulous, so we'll just talk about them high level. This section of code sets up the GameBoy's video memory or 'tile map'. The tile map is a section of memory that the GameBoy uses to get around it's 8kb memory limitation. Rather than define every pixel on screen, it uses a map of tiles to draw reusable blocks, saving a lot of memory.
 
 ```
     LD A,$19		; [0x3E, 0x19]  Setup background tilemap
@@ -465,8 +528,8 @@ class GameBoy {
         const z80 = this.z80;
         const clock = this.clock;
 
-        clock.m = z80.m;
-        clock.t = z80.t;
+        clock.m += z80.m;
+        clock.t += z80.t;
 
         z80.step();
         z80.printDebug();
