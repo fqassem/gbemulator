@@ -4,7 +4,7 @@ module.exports = {
     devtool: 'source-map',
     entry: './src/GameBoy.js',
     output: {
-        path: __dirname + '/output',
+        publicPath: '/output',
         filename: 'emulator.js'
     },
     module: {

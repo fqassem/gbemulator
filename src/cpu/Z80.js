@@ -135,7 +135,7 @@ class Z80 {
         }
 
         this.setFlags(flagsToSet);
-        this.setFlags(flagsToClear);
+        this.clearFlags(flagsToClear);
     }
 
     cp(operand) {
@@ -708,8 +708,8 @@ class Z80 {
             flagsToSet |= ZERO_FLAG;
         }
 
-        this.clearFlags(flagsToClear);
         this.setFlags(flagsToSet);
+        this.clearFlags(flagsToClear);
     }
 
     rl(register) {

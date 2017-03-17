@@ -3,6 +3,8 @@ import defaultBios from './bios';
 class MMU {
     zeroPage = [];
     bios = defaultBios;
+    vram = Array.from({length: 0x1FFF});
+    io = Array.from({length: 0x7F});
 
     readByte(address) {
         let valueAtAddress;
@@ -19,7 +21,7 @@ class MMU {
         } else if(address >= 0xFE00 && address <= 0xFE9F) {
             throw new Error('Not yet implemented');//oam
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
-            throw new Error('Not yet implemented');//io
+            return this.io[address - 0xFF00];
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
             return this.zeroPage[address - 0xFF00];
         }
@@ -48,7 +50,7 @@ class MMU {
         } else if(address >= 0xFE00 && address <= 0xFE9F) {
             throw new Error('Not yet implemented');//oam
         } else if(address >= 0xFF00 && address <= 0xFF7F) {
-            throw new Error('Not yet implemented');//io
+            this.io[address - 0xFF00] = value;//io
         } else if(address >= 0xFF80 && address <= 0xFFFE) {
             this.zeroPage[address - 0xFF00] = value;
         }

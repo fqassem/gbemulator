@@ -328,11 +328,12 @@ Addr_0007:           ; This subroutine clears the video RAM, starting at 9FFF an
     BIT 7,H		     ; [0xCB, 0x7C] - Check the 7th bit of H - if it's zero, set the zero flag else clear the zero flag
     JR NZ, Addr_0007 ; [0x20, 0xFB] - If the zero flag is not set (ie we're still in the video ram address) jump to Addr_0007 and repeat this process
 
-    LD HL,$ff26		; [0x21, 0x26, 0xFF] - Setup audio
-    LD C,$11		; [0xOE, 0X11]
-    LD A,$80		; [0x3E, 0x80]
-    LD (HL-),A		; [0x32]
-    LD ($FF00+C),A	; [0xE2]
+    ;Setup audio
+    LD HL,$ff26		; [0x21, 0x26, 0xFF] - load FF26 (Sound On/Off register) into HL.
+    LD C,$11		; [0xOE, 0X11] - Load $11 into C
+    LD A,$80		; [0x3E, 0x80] - Load $80 into A
+    LD (HL-),A		; [0x32] - Load $80 into FF25 to set the bits of the Sound output selector register
+    LD ($FF00+C),A	; [0xE2] -
     INC C			; [0x0C]
     LD A,$f3		; [0x3E, 0xF3]
     LD ($FF00+C),A	; [0xE2]
