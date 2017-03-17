@@ -4,6 +4,14 @@ Gameboy emulator in JavaScript with Walk-through
 I won't re-hash Imran's excellent emulation [tutorial](http://imrannazar.com/GameBoy-Emulation-in-JavaScript:-The-CPU
 ). The purpose of this documentation is to outline the steps I took to build my own emulator and how I reasoned through it. The purpose of this emulator wasn't performance or best practices - it was written to be as simple as possible for ease of understanding.
 
+To run the project:
+
+`npm start` to run the webpack-dev-server and open up *localhost:8080* in your browser
+
+OR
+
+`npm build` and run your choice of server in the root of the project. The JavaScript bundle is outputted to a folder named *output* after the build succeeds.
+
 ## Emulation: A Background
 Emulation is the process of mimicking hardware functionality in software. Timing, registers, opcodes, memory management - all of features of the hardware need to be replicated correctly or the end product won't work as expected. I found it quite tough to pick a place to start when I first started this emulator. Where do you even begin?
 
