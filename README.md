@@ -2,7 +2,7 @@
 Gameboy emulator in JavaScript with Walk-through
 
 I won't re-hash Imran's excellent emulation [tutorial](http://imrannazar.com/GameBoy-Emulation-in-JavaScript:-The-CPU
-). The purpose of this documentation is to outline the steps I took to build my own emulator and how I reasoned through it. The purpose of this emulator wasn't performance or best practices - it was written to be as simple as possible for ease of understanding.
+). The purpose of this documentation is to outline the steps I took to build my own emulator and how I reasoned through it. This project is not so much about performance or best practices - it was written to be as simple as possible in order to understand the thought process behind emulation.
 
 To run the project:
 
@@ -13,40 +13,40 @@ OR
 `npm build` and run your choice of server in the root of the project. The JavaScript bundle is outputted to a folder named *output* after the build succeeds.
 
 ## Emulation: A Background
-Emulation is the process of mimicking hardware functionality in software. Timing, registers, opcodes, memory management - all of features of the hardware need to be replicated correctly or the end product won't work as expected. I found it quite tough to pick a place to start when I first started this emulator. Where do you even begin?
+Emulation is the process of mimicking hardware functionality in software. Timing, registers, opcodes, memory management - all features of the hardware need to be replicated correctly or the end product simply won't work as expected. I found it quite tough to pick a place to start when I first started this emulator. Where do you even begin? While a Gameboy isn't the most technologically advanced piece of equipment, it's much more complex than I anticipated.
 
-The most logical place seemed to be the processor. After all, the processor is the heart of any computer. However, the more I thought about it, the more it made sense to start with the memory architecture. The processor operates on memory (program data, BIOS, etc.), so it felt more natural. After a few attempts, it felt like I was writing a whole lot of code with not much to show. How did I even know the components I was writing were working correctly?
+The most logical place seemed to be the processor. After all, the processor is the heart of a computer. However, the more I thought about it, the more it made sense to start with what the processor uses and affects - memory. Essentially, a processor reads instructions from memory to manipulate memory, so emulating the processor before emulating the memory architecture is kind of like having a pen without ink. After a few attempts, it felt like I was writing a whole lot of code with not much to show. How did I even know the memory components I was writing were working correctly? I could write unit tests, but without a processor that actually used this memory architecture, it seemed like I would be wasting my time writing tests when I could just emulate the processor.
 
-Obviously it's possible to build each component of the emulator one-by-one and integrate them all at the end. However, this seems like a very error-prone and tedious way of doing things. When we build the emulator, I want to try to create the bare minimum to have a functioning display as soon as possible no matter how simple it is. This will be our confirmation that things are working as expected. After this major hurdle is accomplished, we can iterate and add on to each component until we have a working emulator!
+Obviously it's possible to build each component of the emulator one-by-one and integrate them all at the end. However, this seems like a very error-prone and tedious way of doing things. While building the emulator, I want to try to create the bare minimum to have a functioning display as soon as possible no matter how simple it is - a vertical slice of functionality. This will be our confirmation that what we are writing is working as expected. After this major hurdle is accomplished, we can iterate and add on to each component until we have a working emulator!
 
-After some trial and error, it made sense to build up the CPU, memory architecture, and display components in tandem. It wasn't necessary to completely build the whole emulator before we could test it. Let's just write the bare minimum code to do run the simplest possible on the GameBoy - the BIOS. After this basic functionality is in place, the rest of the emulator should fall into place.
+After some trial and error, it made sense to build up the CPU, memory architecture, and display components in tandem. It wasn't necessary to completely build the whole emulator before we could test it. Let's just write the bare minimum code to do run the simplest possible piece of code on the GameBoy - the BIOS. After this basic functionality is implemented, the rest of the emulator should fall into place.
 
-Before we jump in and start coding, let's step back and try to understand what happens when we turn the GameBoy. It's a lot like the process a computer uses to start up. Let's outline the computer boot process to help us understand what goes on when we flip the switch on our GameBoy.
+Before we jump in and start coding, let's step back and try to understand what happens when we turn the GameBoy on. It's a lot like the process a computer uses to start up with some minor differences.
 
 ## Boot Process
-A computer contains a motherboard that houses all of the hardware components and provides an interface for them to communicate. The motherboard contains a BIOS, a ROM chip that contains a program for initializing and configuring the computer's hardware. After initialization, the BIOS will load the operating system from the hard disk so we can actually do some cool stuff using our computer.
+A computer contains a motherboard that houses all of the hardware components and provides an interface for them to communicate. The motherboard contains the BIOS - a ROM chip that contains a program for initializing and configuring the computer's hardware. After initialization, the BIOS will load the operating system from the hard disk so it can actually start running programs.
 
 When we turn on a computer, power is supplied to the motherboard and the CPU is switched on. The CPU's registers are set to specific default values. A special register, the 'program counter' (sometimes called 'instruction pointer'), is set to a pre-determined default - the address of the BIOS. The program counter now points at the first instruction of the BIOS program and is ready to start the boot process. The CPU will begin a series of cycles that it's destined to complete for eternity (or until it's turned off): fetch, decode, and execute.
 
-The CPU will *fetch* an instruction from the program (pointed to by the program counter). The instruction is it receives is an 'opcode' that maps to some function within the CPU's instruction set. The CPU will decode this opcode into an instruction it understands. Finally, the CPU will *execute* the decoded instruction. This instruction could set flags/registers, read/write to memory, or perform some arithmetic, among other things. The cycle is now complete. The program counter is incremented to point to the next instruction and repeats this process ad infinitum.
+The CPU will *fetch* an instruction from the program (pointed to by the program counter). The instruction is it receives is an 'opcode' that maps to some function within the CPU's instruction set. The CPU will *decode* this opcode into an instruction it understands and, finally, *execute*s the decoded instruction. This instruction could set flags or registers, read/write to memory, or perform some arithmetic, among other things. The cycle is now complete. The program counter is incremented to point to the next instruction and repeats this process ad infinitum.
 
-The cycle is performed on the BIOS program upon boot. When the BIOS program is complete, the BIOS points the program counter to the operating system. The program counter now contains the first instruction of the operating system code. Now the operating system is the program being executed.
+This fetch-decode-execute cycle is performed on the BIOS program upon boot. Just before the BIOS program is complete, one of it's final instructions tells the CPU to point the program counter to a very specific memory address - the location of the operating system. The program counter now contains the first instruction of the operating system code. Now, the fetch-decode-execute cycle is run on the operating system program.
 
-A GameBoy has similar architecture, though there are many small details we need to pay attention to. When a GameBoy is turned on, the registers are reset and the program counter is set to the BIOS, or 'bootstrap ROM'. The BIOS loads and displays the Nintendo logo. After the BIOS is done running, the program counter is set to the first instruction of the cartridge ROM - the game we want to play.
+A GameBoy has similar architecture, though there are many small details we need to pay attention to. When a GameBoy is turned on, the registers are reset and the program counter is set to the BIOS, also known as the 'bootstrap ROM'. The BIOS loads, displays the Nintendo logo, and plays its famous startup sound. After the BIOS is done running, the program counter is set to the first instruction of the cartridge ROM - the game we want to play.
 
-To start, I want to build an extremely barebones GameBoy. When/if it works, I want to add on to it. To get the GameBoy running an actual program as soon as possible, it made sense to emulate the following:
+To start, it made sense to build an extremely barebones GameBoy. After this extremely barebones emulator is working, we can iterate on it by adding the rest of the memory implementation, input/output, sound, and the rest of the opcodes needed for more complex games to run.
 
+To get the GameBoy running an actual program as soon as possible, the following would need to be emulated:
+
+1. Memory architecture - BIOS, Video RAM, Cartridge ROM
 2. CPU - we don't need to implement the full CPU instruction set, just the operations used by the BIOS program
-1. Memory architecture - BIOS, Video RAM
-3. Display
+3. Display - to show the Nintendo logo
 
 With these components in place, we can load the BIOS and see the Nintendo logo displayed on screen just like  [this](https://www.youtube.com/watch?v=b--Ip9xZsgg).
 
-After this extremely barebones emulator is working, we can iterate on it by adding the rest of the memory implementation, input/output, sound, and the rest of the opcodes needed for more complex games to run.
+Let's talk about each of these components we need to build our barebones Gameboy - their structure, quirks, and features. Then lets create the code for each component.
 
-Let's talk about each of these components - their structure, quirks, and features. Then lets create the code for each component.
-
-After we create the bare minimum functionality for each component, we'll need a container to tie them all together. We'll implement this at the end. Let's start with the processor.
+After we create the bare minimum functionality for each component, we'll need a container to tie them all together. We'll implement this at the end. First, let's start with the memory architecture.
 
 ## Memory Architecture
 The GameBoy utilizes a 16-bit address bus, meaning there are 2^16 (64kb) bytes of addressable memory. Everything from video memory to input handling to game data is handled within 64kb of memory! Though there is 64kb of memory that we can address, not all of it is usable. Some of it is duplicated and some is inaccessible. Interestingly, some games were megabytes in size, far exceeding the (less than) 64kb of addressable memory. How did this work?
