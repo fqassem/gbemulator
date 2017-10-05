@@ -14,10 +14,8 @@ class GameBoy {
         clock.t += z80.t;
 
         try {
-            while(1) { //eslint-disable-line
-                z80.step();
-                this.z80.printDebug();
-            }
+            z80.step();
+            this.z80.printDebug();
         } catch(ex) {
             throw ex;
         }
